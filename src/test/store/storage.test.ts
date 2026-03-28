@@ -21,8 +21,8 @@ function minimalData(): AppData {
 describe('loadData', () => {
   it('returns default data when localStorage is empty', () => {
     const data = loadData()
-    expect(data.routines.length).toBeGreaterThan(0)
-    expect(data.goals.length).toBeGreaterThan(0)
+    expect(data.routines).toEqual([])
+    expect(data.goals).toEqual([])
     expect(data.completions).toEqual([])
   })
 
@@ -55,7 +55,8 @@ describe('loadData', () => {
   it('returns fresh default data when localStorage contains corrupted JSON', () => {
     localStorage.setItem('routine-tracker-data', '{invalid json')
     const data = loadData()
-    expect(data.routines.length).toBeGreaterThan(0)
+    expect(data.routines).toEqual([])
+    expect(data.completions).toEqual([])
   })
 })
 

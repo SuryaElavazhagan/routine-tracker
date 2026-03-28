@@ -20,31 +20,43 @@ describe('GoalsView', () => {
 
   it('renders the Active goals section label', () => {
     renderView()
-    expect(screen.getByText(/Active goals/i)).toBeTruthy()
+    const labels = screen.getAllByText(/Active goals/i)
+    expect(labels.length).toBeGreaterThan(0)
   })
 
-  it('renders goal cards for default goals', () => {
+  it('renders goal cards when goals exist', () => {
+    const data: AppData = {
+      routines: [], goals: [{ id: 'g1', name: 'My Goal', active: true, createdAt: '2026-01-01T00:00:00.000Z' }],
+      completions: [], hobbySessions: [], restDays: [], dayNotes: {},
+      meta: { version: 2, exportedAt: '2026-01-01T00:00:00.000Z' },
+    }
+    localStorage.setItem('routine-tracker-data', JSON.stringify(data))
     renderView()
     const cards = document.querySelectorAll('.card')
     expect(cards.length).toBeGreaterThan(0)
   })
 
   it('renders session count text on goal cards', () => {
+    const data: AppData = {
+      routines: [], goals: [{ id: 'g1', name: 'My Goal', active: true, createdAt: '2026-01-01T00:00:00.000Z' }],
+      completions: [], hobbySessions: [], restDays: [], dayNotes: {},
+      meta: { version: 2, exportedAt: '2026-01-01T00:00:00.000Z' },
+    }
+    localStorage.setItem('routine-tracker-data', JSON.stringify(data))
     renderView()
-    // default goals have 0 sessions
     const sessionText = screen.getAllByText(/0 session/i)
     expect(sessionText.length).toBeGreaterThan(0)
   })
 
-  it('shows the page subtitle about sessions', () => {
+  it('renders goal name text', () => {
+    const data: AppData = {
+      routines: [], goals: [{ id: 'g1', name: 'My Goal', active: true, createdAt: '2026-01-01T00:00:00.000Z' }],
+      completions: [], hobbySessions: [], restDays: [], dayNotes: {},
+      meta: { version: 2, exportedAt: '2026-01-01T00:00:00.000Z' },
+    }
+    localStorage.setItem('routine-tracker-data', JSON.stringify(data))
     renderView()
-    expect(screen.getByText(/Sessions accumulate/i)).toBeTruthy()
-  })
-
-  it('renders goal name text for default goals', () => {
-    renderView()
-    // default data includes "Read a book"
-    expect(screen.getByText('Read a book')).toBeTruthy()
+    expect(screen.getByText('My Goal')).toBeTruthy()
   })
 
   it('does not render Recent sessions section when no sessions', () => {
@@ -162,49 +174,35 @@ describe('GoalsView', () => {
   })
 
   it('shows recent sessions section when hobby sessions exist', () => {
-    function TestWrapper() {
-      const { logHobbySession, data } = useApp()
-      const goalId = data.goals[0]?.id ?? 'g1'
-      return (
-        <button
-          data-testid="log-session"
-          onClick={() => logHobbySession(goalId, '2026-03-28')}
-        />
-      )
+    const data: AppData = {
+      routines: [],
+      goals: [{ id: 'g-session', name: 'Session Goal', active: true, createdAt: '2026-01-01T00:00:00.000Z' }],
+      completions: [],
+      hobbySessions: [{ date: '2026-03-28', goalId: 'g-session' }],
+      restDays: [],
+      dayNotes: {},
+      meta: { version: 2, exportedAt: '2026-01-01T00:00:00.000Z' },
     }
+    localStorage.setItem('routine-tracker-data', JSON.stringify(data))
 
-    const { getByTestId } = render(
-      <AppProvider>
-        <TestWrapper />
-        <GoalsView />
-      </AppProvider>,
-    )
-
-    act(() => fireEvent.click(getByTestId('log-session')))
+    render(<AppProvider><GoalsView /></AppProvider>)
 
     expect(screen.getByText(/Recent sessions/i)).toBeTruthy()
   })
 
   it('renders goal session counts greater than zero when sessions exist', () => {
-    function TestWrapper() {
-      const { logHobbySession, data } = useApp()
-      const goalId = data.goals[0]?.id ?? 'g1'
-      return (
-        <button
-          data-testid="log-session"
-          onClick={() => logHobbySession(goalId, '2026-03-20')}
-        />
-      )
+    const data: AppData = {
+      routines: [],
+      goals: [{ id: 'g-session', name: 'Session Goal', active: true, createdAt: '2026-01-01T00:00:00.000Z' }],
+      completions: [],
+      hobbySessions: [{ date: '2026-03-20', goalId: 'g-session' }],
+      restDays: [],
+      dayNotes: {},
+      meta: { version: 2, exportedAt: '2026-01-01T00:00:00.000Z' },
     }
+    localStorage.setItem('routine-tracker-data', JSON.stringify(data))
 
-    const { getByTestId } = render(
-      <AppProvider>
-        <TestWrapper />
-        <GoalsView />
-      </AppProvider>,
-    )
-
-    act(() => fireEvent.click(getByTestId('log-session')))
+    render(<AppProvider><GoalsView /></AppProvider>)
 
     expect(screen.getByText(/1 session/i)).toBeTruthy()
   })

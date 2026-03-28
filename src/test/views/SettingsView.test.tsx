@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { AppProvider } from '../../hooks/useApp'
 import SettingsView from '../../views/SettingsView'
@@ -12,6 +12,19 @@ function renderView() {
   )
 }
 
+function seedRoutines() {
+  const data: AppData = {
+    routines: [
+      { id: 'r1', name: 'Brush teeth', block: 'morning', recurrence: 'daily', scheduledDays: [0,1,2,3,4,5,6], priority: 'high', active: true, createdAt: '2026-01-01T00:00:00.000Z' },
+      { id: 'r2', name: 'Gym', block: 'morning', recurrence: 'daily', scheduledDays: [0,1,2,3,4,5,6], priority: 'low', active: true, createdAt: '2026-01-01T00:00:00.000Z' },
+    ],
+    goals: [],
+    completions: [], hobbySessions: [], restDays: [], dayNotes: {},
+    meta: { version: 2, exportedAt: '2026-01-01T00:00:00.000Z' },
+  }
+  localStorage.setItem('routine-tracker-data', JSON.stringify(data))
+}
+
 describe('SettingsView', () => {
   it('renders the Settings page title', () => {
     renderView()
@@ -19,9 +32,9 @@ describe('SettingsView', () => {
   })
 
   it('renders Routines section with default routines', () => {
+    seedRoutines()
     renderView()
     expect(screen.getByText('Routines')).toBeTruthy()
-    // Default routines should be listed
     const rows = document.querySelectorAll('.settings-row')
     expect(rows.length).toBeGreaterThan(0)
   })
@@ -135,11 +148,11 @@ describe('SettingsView', () => {
   })
 
   it('saves changes to an existing routine', async () => {
+    seedRoutines()
     renderView()
     const rows = document.querySelectorAll('.settings-row')
     fireEvent.click(rows[0] as HTMLElement)
-    const nameInput = screen.getByDisplayValue(/Bath|Brush|Gym|Breakfast|Go to work|Return|dishes|Hobby|Sleep|Plastic|Food|Laundry|Clean/i) as HTMLInputElement
-    const originalName = nameInput.value
+    const nameInput = screen.getByDisplayValue(/Brush teeth|Gym/i) as HTMLInputElement
     fireEvent.change(nameInput, { target: { value: 'Renamed routine' } })
     fireEvent.click(screen.getByText('Save changes'))
     await waitFor(() => {
@@ -250,6 +263,7 @@ describe('SettingsView', () => {
   })
 
   it('deletes a routine from the edit sheet', async () => {
+    seedRoutines()
     renderView()
     const rows = document.querySelectorAll('.settings-row')
     fireEvent.click(rows[0] as HTMLElement)

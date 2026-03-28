@@ -11,6 +11,28 @@ function wrapper({ children }: { children: ReactNode }) {
   return <AppProvider>{children}</AppProvider>
 }
 
+// ── seed helpers ──────────────────────────────────────────────────────────────
+
+function seedData(overrides: Partial<AppData> = {}) {
+  const base: AppData = {
+    routines: [
+      { id: 'r1', name: 'Brush teeth', block: 'morning', recurrence: 'daily', scheduledDays: [0,1,2,3,4,5,6], priority: 'high', active: true, createdAt: '2026-01-01T00:00:00.000Z' },
+      { id: 'r2', name: 'Gym', block: 'morning', recurrence: 'daily', scheduledDays: [0,1,2,3,4,5,6], priority: 'low', active: true, createdAt: '2026-01-01T00:00:00.000Z' },
+    ],
+    goals: [
+      { id: 'g1', name: 'Read a book', active: true, createdAt: '2026-01-01T00:00:00.000Z' },
+      { id: 'g2', name: 'Learn a skill', active: true, createdAt: '2026-01-01T00:00:00.000Z' },
+    ],
+    completions: [],
+    hobbySessions: [],
+    restDays: [],
+    dayNotes: {},
+    meta: { version: 2, exportedAt: '2026-01-01T00:00:00.000Z' },
+    ...overrides,
+  }
+  localStorage.setItem('routine-tracker-data', JSON.stringify(base))
+}
+
 // Suppress notification scheduling errors in test environment
 beforeEach(() => {
   Object.defineProperty(globalThis.Notification, 'permission', {
@@ -32,7 +54,14 @@ describe('useApp', () => {
 // ── AppProvider initial data ──────────────────────────────────────────────────
 
 describe('AppProvider', () => {
-  it('loads default data on mount', () => {
+  it('loads default data on mount (empty store starts blank)', () => {
+    const { result } = renderHook(() => useApp(), { wrapper })
+    expect(result.current.data.routines).toEqual([])
+    expect(result.current.data.goals).toEqual([])
+  })
+
+  it('loads seeded data from localStorage on mount', () => {
+    seedData()
     const { result } = renderHook(() => useApp(), { wrapper })
     expect(result.current.data.routines.length).toBeGreaterThan(0)
     expect(result.current.data.goals.length).toBeGreaterThan(0)
@@ -42,6 +71,8 @@ describe('AppProvider', () => {
 // ── toggleCompletion ──────────────────────────────────────────────────────────
 
 describe('toggleCompletion', () => {
+  beforeEach(() => seedData())
+
   it('adds a done completion when none exists', () => {
     const { result } = renderHook(() => useApp(), { wrapper })
     const routineId = result.current.data.routines[0].id
@@ -69,6 +100,8 @@ describe('toggleCompletion', () => {
 // ── logHobbySession / clearHobbySession ───────────────────────────────────────
 
 describe('logHobbySession', () => {
+  beforeEach(() => seedData())
+
   it('adds a hobby session for the given date and goal', () => {
     const { result } = renderHook(() => useApp(), { wrapper })
     const goalId = result.current.data.goals[0].id
@@ -95,6 +128,8 @@ describe('logHobbySession', () => {
 })
 
 describe('clearHobbySession', () => {
+  beforeEach(() => seedData())
+
   it('removes the session for the given date', () => {
     const { result } = renderHook(() => useApp(), { wrapper })
     const goalId = result.current.data.goals[0].id
@@ -129,6 +164,8 @@ describe('addRoutine', () => {
 })
 
 describe('updateRoutine', () => {
+  beforeEach(() => seedData())
+
   it('updates the named field of the matching routine', () => {
     const { result } = renderHook(() => useApp(), { wrapper })
     const id = result.current.data.routines[0].id
@@ -141,6 +178,8 @@ describe('updateRoutine', () => {
 })
 
 describe('deleteRoutine', () => {
+  beforeEach(() => seedData())
+
   it('removes the routine with the given id', () => {
     const { result } = renderHook(() => useApp(), { wrapper })
     const id = result.current.data.routines[0].id
@@ -152,6 +191,8 @@ describe('deleteRoutine', () => {
 })
 
 describe('reorderRoutines', () => {
+  beforeEach(() => seedData())
+
   it('reorders routines to match provided id order', () => {
     const { result } = renderHook(() => useApp(), { wrapper })
     const ids = result.current.data.routines.map(r => r.id)
@@ -178,6 +219,8 @@ describe('addGoal', () => {
 })
 
 describe('updateGoal', () => {
+  beforeEach(() => seedData())
+
   it('updates goal fields', () => {
     const { result } = renderHook(() => useApp(), { wrapper })
     const id = result.current.data.goals[0].id
@@ -189,6 +232,8 @@ describe('updateGoal', () => {
 })
 
 describe('deleteGoal', () => {
+  beforeEach(() => seedData())
+
   it('removes the goal', () => {
     const { result } = renderHook(() => useApp(), { wrapper })
     const id = result.current.data.goals[0].id

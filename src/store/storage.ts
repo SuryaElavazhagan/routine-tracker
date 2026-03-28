@@ -3,27 +3,9 @@ import type { AppData, Routine, Goal } from '../types'
 
 const STORAGE_KEY = 'routine-tracker-data'
 
-const DEFAULT_ROUTINES: Omit<Routine, 'id' | 'createdAt'>[] = [
-  { name: 'Bath / shower',     block: 'morning',    recurrence: 'daily',          scheduledDays: [0,1,2,3,4,5,6], priority: 'low',  active: true },
-  { name: 'Brush teeth',       block: 'morning',    recurrence: 'daily',          scheduledDays: [0,1,2,3,4,5,6], priority: 'high', active: true },
-  { name: 'Gym',               block: 'morning',    recurrence: 'daily',          scheduledDays: [0,1,2,3,4,5,6], priority: 'low',  active: true },
-  { name: 'Breakfast',         block: 'morning',    recurrence: 'daily',          scheduledDays: [0,1,2,3,4,5,6], priority: 'low',  active: true },
-  { name: 'Go to work',        block: 'work',       recurrence: 'specific-days',  scheduledDays: [1,2,3,4,5],     priority: 'low',  active: true },
-  { name: 'Return from work',  block: 'work',       recurrence: 'specific-days',  scheduledDays: [1,2,3,4,5],     priority: 'low',  active: true },
-  { name: 'Do the dishes',     block: 'evening',    recurrence: 'daily',          scheduledDays: [0,1,2,3,4,5,6], priority: 'low',  active: true },
-  { name: 'Hobby time',        block: 'evening',    recurrence: 'daily',          scheduledDays: [0,1,2,3,4,5,6], priority: 'low',  active: true, isHobbySlot: true },
-  { name: 'Sleep',             block: 'wind-down',  recurrence: 'daily',          scheduledDays: [0,1,2,3,4,5,6], priority: 'low',  active: true },
-  { name: 'Plastic garbage',   block: 'evening',    recurrence: 'specific-days',  scheduledDays: [5],             priority: 'low',  active: true },
-  { name: 'Food waste',        block: 'evening',    recurrence: 'specific-days',  scheduledDays: [0],             priority: 'low',  active: true },
-  { name: 'Laundry',           block: 'evening',    recurrence: 'once-a-week',    scheduledDays: [],              priority: 'low',  active: true },
-  { name: 'Clean apartment',   block: 'evening',    recurrence: 'once-a-week',    scheduledDays: [],              priority: 'low',  active: true },
-]
+const DEFAULT_ROUTINES: Omit<Routine, 'id' | 'createdAt'>[] = []
 
-const DEFAULT_GOALS: Omit<Goal, 'id' | 'createdAt'>[] = [
-  { name: 'Read a book',       active: true },
-  { name: 'Complete a course', active: true },
-  { name: 'Learn a skill',     active: true },
-]
+const DEFAULT_GOALS: Omit<Goal, 'id' | 'createdAt'>[] = []
 
 function buildDefault(): AppData {
   const now = new Date().toISOString()

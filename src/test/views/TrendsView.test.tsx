@@ -57,11 +57,19 @@ describe('TrendsView', () => {
     expect(screen.getByText(/Per-routine consistency/i)).toBeTruthy()
   })
 
-  it('renders stat rows for active routines', () => {
-    renderView()
+  it('renders stat rows for active routines when seeded', () => {
+    const data: AppData = {
+      routines: [
+        { id: 'r1', name: 'Brush teeth', block: 'morning', recurrence: 'daily', scheduledDays: [0,1,2,3,4,5,6], priority: 'high', active: true, createdAt: '2026-01-01T00:00:00.000Z' },
+        { id: 'r2', name: 'Gym', block: 'morning', recurrence: 'daily', scheduledDays: [0,1,2,3,4,5,6], priority: 'low', active: true, createdAt: '2026-01-01T00:00:00.000Z' },
+      ],
+      goals: [], completions: [], hobbySessions: [], restDays: [], dayNotes: {},
+      meta: { version: 2, exportedAt: '2026-01-01T00:00:00.000Z' },
+    }
+    localStorage.setItem('routine-tracker-data', JSON.stringify(data))
+    render(<AppProvider><TrendsView /></AppProvider>)
     const rows = document.querySelectorAll('.stat-row')
-    // Default data has active routines
-    expect(rows.length).toBeGreaterThanOrEqual(0)
+    expect(rows.length).toBeGreaterThan(0)
   })
 
   it('shows dip alert for a dipping routine', () => {
