@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { AppProvider, useApp } from '../../hooks/useApp'
 import GoalsView from '../../views/GoalsView'
-import type { ReactNode } from 'react'
+import type { AppData } from '../../types'
 
 function renderView() {
   return render(
@@ -10,11 +10,6 @@ function renderView() {
       <GoalsView />
     </AppProvider>,
   )
-}
-
-// Wrapper with pre-seeded data for more complex scenarios
-function AppWithGoalsAndSessions({ children }: { children: ReactNode }) {
-  return <AppProvider>{children}</AppProvider>
 }
 
 describe('GoalsView', () => {
