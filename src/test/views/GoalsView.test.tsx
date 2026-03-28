@@ -91,9 +91,8 @@ describe('GoalsView', () => {
 
     // Should show the goal name
     expect(screen.getByText('Goal With Milestones')).toBeTruthy()
-    // Click on the goal card to expand
-    const goalCard = screen.getByText('Goal With Milestones').closest('.card') as HTMLElement
-    fireEvent.click(goalCard)
+    // Click on the goal name (which is inside the clickable header div) to expand
+    fireEvent.click(screen.getByText('Goal With Milestones'))
     // Should show milestone list
     expect(document.body.textContent).toContain('Custom First Label')
   })
@@ -125,10 +124,10 @@ describe('GoalsView', () => {
 
     render(<AppProvider><GoalsView /></AppProvider>)
 
-    const goalCard = screen.getByText('Goal Completed Milestone').closest('.card') as HTMLElement
-    fireEvent.click(goalCard)
-    // Should show milestone content (expanded)
-    expect(document.body.textContent).toContain('Milestone 2')
+    const goalName = screen.getByText('Goal Completed Milestone')
+    fireEvent.click(goalName)
+    // Milestone list expanded — completed date should be visible
+    expect(document.body.textContent).toContain('Completed 2026-01-07')
   })
 
   it('toggles milestone completion when milestone button is clicked', () => {
@@ -155,8 +154,8 @@ describe('GoalsView', () => {
 
     render(<AppProvider><GoalsView /></AppProvider>)
 
-    const goalCard = screen.getByText('Toggle Goal').closest('.card') as HTMLElement
-    fireEvent.click(goalCard)
+    const goalName = screen.getByText('Toggle Goal')
+    fireEvent.click(goalName)
 
     // The milestone button should be visible
     const milestoneButtons = document.querySelectorAll('button[style*="border-radius: 50%"]')

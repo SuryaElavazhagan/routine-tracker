@@ -1,73 +1,38 @@
-# React + TypeScript + Vite
+# Routine Tracker
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+[![Tests](https://github.com/SuryaElavazhagan/routine-tracker/actions/workflows/deploy.yml/badge.svg)](https://github.com/SuryaElavazhagan/routine-tracker/actions/workflows/deploy.yml)
+![Tests passing](https://img.shields.io/badge/tests-169%20passed-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-88%25-brightgreen)
 
-Currently, two official plugins are available:
+A personal consistency companion — a PWA built for neurodivergent users that records what happened without judgment.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Features
 
-## React Compiler
+- **Daily check-in** — tick off routines grouped by time block (morning, work, evening, wind-down)
+- **Trends** — per-routine consistency over 7 / 30 / 90 days, streaks, trend badges, weekly heatmap
+- **Goals & milestones** — long-term goals split into dated checkpoints with progress tracking
+- **Hobby time** — log which goal you worked on each day
+- **Offline-first PWA** — installs to iPhone home screen via Safari, works fully offline
+- **Backup & restore** — export/import JSON for iCloud Drive backup; no backend, no account
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Tech stack
 
-## Expanding the ESLint configuration
+- React 19 + TypeScript + Vite 8
+- localStorage only — all data stays on device
+- `vite-plugin-pwa` with Workbox for service worker + offline support
+- Vitest + Testing Library for unit/integration tests (169 tests, ≥80% coverage)
+- GitHub Actions → GitHub Pages for CI/CD
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Development
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev          # dev server at http://localhost:5173
+npm run build        # production build
+npm run test         # run tests
+npm run test:coverage  # run tests with coverage report
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Deployment
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Pushes to `main` run the test suite first, then build and deploy to GitHub Pages automatically via `.github/workflows/deploy.yml`.
