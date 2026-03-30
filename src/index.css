@@ -504,10 +504,22 @@ body {
   width: 100%;
   background: var(--surface);
   border-radius: var(--radius) var(--radius) 0 0;
-  padding: 20px 20px calc(20px + var(--safe-bot));
   max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+.sheet-body {
+  padding: 20px 20px 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.sheet-footer {
+  padding: 12px 20px calc(12px + var(--safe-bot));
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
 }
 .sheet-handle {
   width: 36px; height: 4px;

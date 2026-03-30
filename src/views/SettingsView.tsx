@@ -80,6 +80,7 @@ function RoutineSheet({ routine, onClose }: RoutineSheetProps) {
   return (
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e => e.stopPropagation()}>
+        <div className="sheet-body">
         <div className="sheet-handle" />
         <div className="sheet-title">{routine ? 'Edit routine' : 'New routine'}</div>
 
@@ -193,7 +194,9 @@ function RoutineSheet({ routine, onClose }: RoutineSheetProps) {
               : 'You\'ll get a push notification at this time each day this routine is scheduled. Requires notification permission.'}
           </p>
         </div>
+        </div>{/* end sheet-body */}
 
+        <div className="sheet-footer">
         <button className="btn btn-primary btn-full" onClick={save}>
           {routine ? 'Save changes' : 'Add routine'}
         </button>
@@ -211,6 +214,7 @@ function RoutineSheet({ routine, onClose }: RoutineSheetProps) {
         <button className="btn btn-secondary btn-full" style={{ marginTop: 10 }} onClick={onClose}>
           Cancel
         </button>
+        </div>{/* end sheet-footer */}
       </div>
     </div>
   )
@@ -293,6 +297,7 @@ function GoalSheet({ goal, onClose }: GoalSheetProps) {
   return (
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e => e.stopPropagation()}>
+        <div className="sheet-body">
         <div className="sheet-handle" />
         <div className="sheet-title">{goal ? 'Edit goal' : 'New goal'}</div>
 
@@ -420,7 +425,9 @@ function GoalSheet({ goal, onClose }: GoalSheetProps) {
             )}
           </div>
         )}
+        </div>{/* end sheet-body */}
 
+        <div className="sheet-footer">
         <button className="btn btn-primary btn-full" onClick={save}>
           {goal ? 'Save changes' : 'Add goal'}
         </button>
@@ -447,6 +454,7 @@ function GoalSheet({ goal, onClose }: GoalSheetProps) {
         <button className="btn btn-secondary btn-full" style={{ marginTop: 10 }} onClick={onClose}>
           Cancel
         </button>
+        </div>{/* end sheet-footer */}
       </div>
     </div>
   )
