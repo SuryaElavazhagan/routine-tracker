@@ -1,9 +1,22 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, act } from '@testing-library/react'
 import { renderHook } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { AppProvider, useApp } from '../../hooks/useApp'
 import type { AppData } from '../../types'
+
+// Mock notification helpers to avoid side-effects in tests
+vi.mock('../../utils/notifications', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../utils/notifications')>()
+  return {
+    ...actual,
+    scheduleAllNotifications: vi.fn(),
+    scheduleRoutineNotification: vi.fn(),
+    cancelRoutineNotification: vi.fn(),
+  }
+})
+
+import { scheduleAllNotifications, cancelRoutineNotification } from '../../utils/notifications'
 
 // ── wrapper ───────────────────────────────────────────────────────────────────
 
@@ -188,6 +201,36 @@ describe('deleteRoutine', () => {
     act(() => result.current.deleteRoutine(id))
 
     expect(result.current.data.routines.find(r => r.id === id)).toBeUndefined()
+  })
+
+  it('cancels the notification timer for the deleted routine', () => {
+    const { result } = renderHook(() => useApp(), { wrapper })
+    const id = result.current.data.routines[0].id
+
+    act(() => result.current.deleteRoutine(id))
+
+    expect(cancelRoutineNotification).toHaveBeenCalledWith(id)
+  })
+})
+
+// ── rescheduleNotifications ───────────────────────────────────────────────────
+
+describe('rescheduleNotifications', () => {
+  beforeEach(() => {
+    seedData({
+      routines: [
+        { id: 'r1', name: 'Brush teeth', block: 'morning', recurrence: 'daily', scheduledDays: [0,1,2,3,4,5,6], priority: 'high', active: true, createdAt: '2026-01-01T00:00:00.000Z', reminderTime: '08:00' },
+      ],
+    })
+    vi.mocked(scheduleAllNotifications).mockClear()
+  })
+
+  it('calls scheduleAllNotifications with active routines that have reminders', () => {
+    const { result } = renderHook(() => useApp(), { wrapper })
+
+    act(() => result.current.rescheduleNotifications())
+
+    expect(scheduleAllNotifications).toHaveBeenCalled()
   })
 })
 

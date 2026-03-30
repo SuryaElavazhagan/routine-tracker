@@ -94,6 +94,15 @@ export function cancelAllNotifications() {
   scheduledTimers.clear()
 }
 
+/** Cancel the pending notification timer for a single routine, if any. */
+export function cancelRoutineNotification(routineId: string) {
+  const existing = scheduledTimers.get(routineId)
+  if (existing !== undefined) {
+    clearTimeout(existing)
+    scheduledTimers.delete(routineId)
+  }
+}
+
 /** Schedule a local notification for a routine at its reminderTime today.
  *  Safe to call multiple times — cancels any previous timer for the same routine. */
 export function scheduleRoutineNotification(routine: Routine) {
@@ -114,15 +123,28 @@ export function scheduleRoutineNotification(routine: Routine) {
 
   const timer = setTimeout(() => {
     try {
-      // Try service worker notification first (works in background on mobile)
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
-          type: 'SHOW_NOTIFICATION',
-          title: `Reminder: ${routine.name}`,
-          body: 'Tap to open your routines.',
-          tag: `routine-${routine.id}`,
+      if ('serviceWorker' in navigator) {
+        // Use registration.showNotification() — works even when controller is
+        // null (e.g. first load before SW activates). `ready` always resolves
+        // to the active SW registration.  This is the only path that works on
+        // iOS Safari (which does not support `new Notification()` at all).
+        navigator.serviceWorker.ready.then(reg => {
+          reg.showNotification(`Reminder: ${routine.name}`, {
+            body: 'Tap to open your routines.',
+            tag: `routine-${routine.id}`,
+            icon: './icons/icon-192.png',
+          })
+        }).catch(() => {
+          // SW not available — fall back to plain Notification (non-iOS)
+          if (Notification.permission === 'granted') {
+            new Notification(`Reminder: ${routine.name}`, {
+              body: 'Tap to open your routines.',
+              tag: `routine-${routine.id}`,
+              icon: './icons/icon-192.png',
+            })
+          }
         })
-      } else {
+      } else if (Notification.permission === 'granted') {
         new Notification(`Reminder: ${routine.name}`, {
           body: 'Tap to open your routines.',
           tag: `routine-${routine.id}`,

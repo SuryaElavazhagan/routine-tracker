@@ -162,7 +162,7 @@ function GoalTimePicker({ date }: { date: string }) {
 }
 
 export default function CheckInView() {
-  const { data, toggleCompletion, toggleRestDay, setDayNote } = useApp()
+  const { data, toggleCompletion, toggleRestDay, setDayNote, rescheduleNotifications } = useApp()
   const [noteValue, setNoteValue] = useState(() => data.dayNotes[today()] ?? '')
   const [notifPerm, setNotifPerm] = useState(getPermission)
   const t = today()
@@ -188,6 +188,7 @@ export default function CheckInView() {
   async function enableNotifications() {
     const p = await requestPermission()
     setNotifPerm(p)
+    if (p === 'granted') rescheduleNotifications()
   }
 
   return (

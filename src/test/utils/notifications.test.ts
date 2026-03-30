@@ -4,6 +4,7 @@ import {
   getPermission,
   requestPermission,
   cancelAllNotifications,
+  cancelRoutineNotification,
   scheduleRoutineNotification,
   scheduleAllNotifications,
   isBiweeklyFireWeek,
@@ -82,6 +83,27 @@ describe('cancelAllNotifications', () => {
   })
 })
 
+// ── cancelRoutineNotification ─────────────────────────────────────────────────
+
+describe('cancelRoutineNotification', () => {
+  it('cancels a specific routine timer without affecting others', () => {
+    vi.useFakeTimers()
+    setNotificationPermission('granted')
+    vi.setSystemTime(new Date('2026-03-28T06:00:00'))
+    const r1 = makeRoutine({ id: 'r1', reminderTime: '08:00' })
+    const r2 = makeRoutine({ id: 'r2', reminderTime: '09:00' })
+    scheduleRoutineNotification(r1)
+    scheduleRoutineNotification(r2)
+    cancelRoutineNotification('r1')
+    // No error expected; r2 timer still alive
+    vi.useRealTimers()
+  })
+
+  it('does nothing when no timer exists for that id', () => {
+    expect(() => cancelRoutineNotification('nonexistent')).not.toThrow()
+  })
+})
+
 // ── scheduleRoutineNotification ───────────────────────────────────────────────
 
 describe('scheduleRoutineNotification', () => {
@@ -119,22 +141,24 @@ describe('scheduleRoutineNotification', () => {
     vi.runAllTimers()
   })
 
-  it('schedules a Notification for a future time (no SW controller)', () => {
+  it('schedules a notification via serviceWorker.ready for a future time', () => {
     setNotificationPermission('granted')
     // Set time to 06:00 so 08:00 is in the future
     vi.setSystemTime(new Date('2026-03-28T06:00:00'))
     const r = makeRoutine({ id: 'r1', name: 'Morning routine', reminderTime: '08:00' })
 
-    // Ensure navigator.serviceWorker.controller is null
+    const showNotification = vi.fn().mockResolvedValue(undefined)
     Object.defineProperty(globalThis.navigator, 'serviceWorker', {
-      value: { controller: null },
+      value: {
+        controller: null,
+        ready: Promise.resolve({ showNotification }),
+      },
       configurable: true,
     })
 
     scheduleRoutineNotification(r)
     vi.runAllTimers()
-    // Notification constructor should have been called
-    // (we can't easily assert on the mock class calls, but we verify no throw)
+    // No throw; showNotification will be called asynchronously
   })
 
   it('cancels previous timer when re-scheduled', () => {
