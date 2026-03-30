@@ -110,7 +110,7 @@ export default function TrendsView() {
           const c = getConsistency(s)
           return (
             <div key={s.routineId} className="stat-row">
-              <span className="stat-label">{r.name}</span>
+              <span className="stat-label" title={r.name}>{r.name}</span>
               <span className={`stat-num ${numColor(c)}`}>{c}%</span>
               <span className={`stat-num ${numColor(s.streak > 0 ? 80 : 0)}`}>{s.streak}d</span>
               <span className={`trend-badge ${s.trend}`} style={{ gridColumn: 'span 2', justifySelf: 'center' }}>

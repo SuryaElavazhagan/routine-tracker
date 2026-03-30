@@ -277,7 +277,14 @@ body {
   font-size: 13px;
 }
 .stat-row:last-child { border-bottom: none; }
-.stat-label { font-size: 14px; }
+.stat-label {
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  cursor: default;
+}
 .stat-num { text-align: center; font-variant-numeric: tabular-nums; }
 .stat-num.good { color: var(--green); }
 .stat-num.mid  { color: var(--amber); }

@@ -95,6 +95,7 @@ export default function GoalsView() {
   const activeGoals = data.goals.filter(g => g.active)
   const inactiveGoals = data.goals.filter(g => !g.active)
 
+  // Hobby sessions per goal
   const sessionsByGoal = useMemo(() => {
     const map = new Map<string, string[]>()
     for (const s of data.hobbySessions) {
@@ -105,8 +106,27 @@ export default function GoalsView() {
     return map
   }, [data.hobbySessions])
 
+  // Goal-time progress sessions per goal (most recent per day, sum of pct for display)
+  const progressSessionsByGoal = useMemo(() => {
+    const map = new Map<string, number[]>()
+    for (const s of data.goalProgressSessions) {
+      const arr = map.get(s.goalId) ?? []
+      arr.push(s.progressPct)
+      map.set(s.goalId, arr)
+    }
+    return map
+  }, [data.goalProgressSessions])
+
   const recentDays = new Set(lastNDays(30))
-  const recentSessions = data.hobbySessions.filter(s => recentDays.has(s.date))
+  const recentHobbySessions = data.hobbySessions.filter(s => recentDays.has(s.date))
+  const recentProgressSessions = data.goalProgressSessions.filter(s => recentDays.has(s.date))
+
+  // Combined session log (both types) sorted by date desc
+  const allSessions = useMemo(() => {
+    const hobby = data.hobbySessions.map(s => ({ ...s, type: 'hobby' as const, progressPct: undefined as number | undefined }))
+    const progress = data.goalProgressSessions.map(s => ({ ...s, type: 'goal-time' as const }))
+    return [...hobby, ...progress].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 40)
+  }, [data.hobbySessions, data.goalProgressSessions])
 
   return (
     <div className="page">
@@ -115,7 +135,7 @@ export default function GoalsView() {
       </div>
 
       <p className="page-sub">
-        Every day you mark hobby time, you pick which goal you worked on.
+        Every day you mark hobby or goal time, you pick which goal you worked on.
         Sessions accumulate — no pressure, just progress.
       </p>
 
@@ -124,12 +144,22 @@ export default function GoalsView() {
         <div className="empty">No active goals — add some in Settings.</div>
       )}
       {activeGoals.map(g => {
-        const sessions = sessionsByGoal.get(g.id) ?? []
-        const recent = recentSessions.filter(s => s.goalId === g.id).length
+        const hobbySessions = sessionsByGoal.get(g.id) ?? []
+        const progressPcts = progressSessionsByGoal.get(g.id) ?? []
+        const recentHobby = recentHobbySessions.filter(s => s.goalId === g.id).length
+        const recentProgress = recentProgressSessions.filter(s => s.goalId === g.id).length
+        const totalSessions = hobbySessions.length + progressPcts.length
+        const recentTotal = recentHobby + recentProgress
         const pct = goalProgress(g)
         const active = currentActiveMilestone(g)
         const hasMilestones = (g.milestoneCount ?? 0) > 0
         const expanded = expandedGoal === g.id
+        const goalType = g.goalType ?? 'normal'
+
+        // Book/course progress: average of all progressPct sessions
+        const avgProgress = progressPcts.length > 0
+          ? Math.round(progressPcts.reduce((a, b) => a + b, 0) / progressPcts.length)
+          : null
 
         return (
           <div key={g.id} className="card" style={{ padding: '14px 16px', marginBottom: 10 }}>
@@ -139,13 +169,32 @@ export default function GoalsView() {
               onClick={() => hasMilestones && setExpandedGoal(expanded ? null : g.id)}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 16 }}>{g.name}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ fontWeight: 700, fontSize: 16 }}>{g.name}</div>
+                  {goalType !== 'normal' && (
+                    <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-mute)', background: 'var(--surface2)', padding: '1px 6px', borderRadius: 99, textTransform: 'uppercase' }}>
+                      {goalType}
+                    </span>
+                  )}
+                </div>
                 <div className="text-xs text-mute" style={{ marginTop: 3 }}>
-                  {sessions.length} session{sessions.length !== 1 ? 's' : ''}
-                  {recent > 0 && ` · ${recent} in last 30 days`}
+                  {totalSessions} session{totalSessions !== 1 ? 's' : ''}
+                  {recentTotal > 0 && ` · ${recentTotal} in last 30 days`}
                   {hasMilestones && ` · ${(g.milestones ?? []).filter(m => m.completedAt).length}/${g.milestoneCount} milestones`}
                   {g.endDate && ` · ends ${g.endDate}`}
                 </div>
+
+                {/* Book/course specific progress */}
+                {goalType === 'book' && g.totalPages && avgProgress !== null && (
+                  <div className="text-xs" style={{ color: 'var(--accent)', marginTop: 3 }}>
+                    Avg session progress: {avgProgress}% · {Math.round(g.totalPages * avgProgress / 100)}/{g.totalPages} pages
+                  </div>
+                )}
+                {goalType === 'course' && g.totalLessons && avgProgress !== null && (
+                  <div className="text-xs" style={{ color: 'var(--accent)', marginTop: 3 }}>
+                    Avg session progress: {avgProgress}% · {Math.round(g.totalLessons * avgProgress / 100)}/{g.totalLessons} lessons
+                  </div>
+                )}
 
                 {hasMilestones && (
                   <>
@@ -173,24 +222,26 @@ export default function GoalsView() {
       })}
 
       {/* Recent session log */}
-      {data.hobbySessions.length > 0 && (
+      {allSessions.length > 0 && (
         <>
           <div className="section-label">Recent sessions</div>
           <div className="card">
-            {[...data.hobbySessions]
-              .sort((a, b) => b.date.localeCompare(a.date))
-              .slice(0, 30)
-              .map((s, i) => {
-                const goal = data.goals.find(g => g.id === s.goalId)
-                const date = new Date(s.date + 'T00:00:00')
-                const label = date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
-                return (
-                  <div key={i} className="flex-between" style={{ padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-                    <span className="text-dim text-small">{label}</span>
+            {allSessions.map((s, i) => {
+              const goal = data.goals.find(g => g.id === s.goalId)
+              const date = new Date(s.date + 'T00:00:00')
+              const label = date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+              return (
+                <div key={i} className="flex-between" style={{ padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                  <span className="text-dim text-small">{label}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {s.type === 'goal-time' && s.progressPct !== undefined && (
+                      <span className="text-xs" style={{ color: 'var(--accent)', fontWeight: 600 }}>{s.progressPct}%</span>
+                    )}
                     <span style={{ fontSize: 14 }}>{goal?.name ?? 'Unknown goal'}</span>
                   </div>
-                )
-              })}
+                </div>
+              )
+            })}
           </div>
         </>
       )}
@@ -199,14 +250,16 @@ export default function GoalsView() {
         <>
           <div className="section-label">Completed / archived goals</div>
           {inactiveGoals.map(g => {
-            const sessions = sessionsByGoal.get(g.id) ?? []
+            const hobbySessions = sessionsByGoal.get(g.id) ?? []
+            const progressPcts = progressSessionsByGoal.get(g.id) ?? []
+            const totalSessions = hobbySessions.length + progressPcts.length
             const pct = goalProgress(g)
             return (
               <div key={g.id} className="goal-row" style={{ opacity: 0.5 }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600, fontSize: 15, textDecoration: 'line-through' }}>{g.name}</div>
                   <div className="text-xs text-mute" style={{ marginTop: 2 }}>
-                    {sessions.length} total sessions
+                    {totalSessions} total sessions
                     {(g.milestoneCount ?? 0) > 0 && ` · ${pct}% milestones done`}
                   </div>
                 </div>

@@ -37,9 +37,10 @@ function makeData(routines: Routine[], completions: Completion[] = [], restDays:
     goals: [],
     completions,
     hobbySessions: [],
+    goalProgressSessions: [],
     restDays,
     dayNotes: {},
-    meta: { version: 2, exportedAt: '2026-01-01T00:00:00.000Z' },
+    meta: { version: 3, exportedAt: '2026-01-01T00:00:00.000Z' },
   }
 }
 

@@ -25,9 +25,10 @@ function seedData(overrides: Partial<AppData> = {}) {
     ],
     completions: [],
     hobbySessions: [],
+    goalProgressSessions: [],
     restDays: [],
     dayNotes: {},
-    meta: { version: 2, exportedAt: '2026-01-01T00:00:00.000Z' },
+    meta: { version: 3, exportedAt: '2026-01-01T00:00:00.000Z' },
     ...overrides,
   }
   localStorage.setItem('routine-tracker-data', JSON.stringify(base))
@@ -310,6 +311,50 @@ describe('toggleRestDay', () => {
   })
 })
 
+// ── logGoalProgressSession / clearGoalProgressSession ────────────────────────
+
+describe('logGoalProgressSession', () => {
+  beforeEach(() => seedData())
+
+  it('logs a goal progress session for the given date, goal, and pct', () => {
+    const { result } = renderHook(() => useApp(), { wrapper })
+    const goalId = result.current.data.goals[0].id
+
+    act(() => result.current.logGoalProgressSession(goalId, '2026-03-28', 75))
+
+    expect(result.current.data.goalProgressSessions).toEqual(
+      expect.arrayContaining([{ date: '2026-03-28', goalId, progressPct: 75 }]),
+    )
+  })
+
+  it('replaces session for the same date with a new one', () => {
+    const { result } = renderHook(() => useApp(), { wrapper })
+    const g1 = result.current.data.goals[0].id
+
+    act(() => result.current.logGoalProgressSession(g1, '2026-03-28', 50))
+    act(() => result.current.logGoalProgressSession(g1, '2026-03-28', 80))
+
+    const sessions = result.current.data.goalProgressSessions.filter(s => s.date === '2026-03-28')
+    expect(sessions).toHaveLength(1)
+    expect(sessions[0].progressPct).toBe(80)
+  })
+})
+
+describe('clearGoalProgressSession', () => {
+  beforeEach(() => seedData())
+
+  it('removes the progress session for the given date', () => {
+    const { result } = renderHook(() => useApp(), { wrapper })
+    const goalId = result.current.data.goals[0].id
+
+    act(() => result.current.logGoalProgressSession(goalId, '2026-03-28', 40))
+    act(() => result.current.clearGoalProgressSession('2026-03-28'))
+
+    const sessions = result.current.data.goalProgressSessions.filter(s => s.date === '2026-03-28')
+    expect(sessions).toHaveLength(0)
+  })
+})
+
 // ── setDayNote ────────────────────────────────────────────────────────────────
 
 describe('setDayNote', () => {
@@ -333,9 +378,10 @@ describe('setData', () => {
       goals: [],
       completions: [],
       hobbySessions: [],
+      goalProgressSessions: [],
       restDays: [],
       dayNotes: {},
-      meta: { version: 2, exportedAt: '2026-01-01T00:00:00.000Z' },
+      meta: { version: 3, exportedAt: '2026-01-01T00:00:00.000Z' },
     }
 
     act(() => result.current.setData(newData))

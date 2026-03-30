@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
 import { v4 as uuidv4 } from 'uuid'
-import type { AppData, Routine, Goal, Completion, Milestone } from '../types'
+import type { AppData, Routine, Goal, Completion, Milestone, GoalProgressSession } from '../types'
 import { loadData, saveData } from '../store/storage'
 import { scheduleAllNotifications, scheduleRoutineNotification } from '../utils/notifications'
 import { isScheduledOn, today } from '../utils/metrics'
@@ -10,6 +10,8 @@ interface AppContextValue {
   toggleCompletion: (routineId: string, date: string) => void
   logHobbySession: (goalId: string, date: string) => void
   clearHobbySession: (date: string) => void
+  logGoalProgressSession: (goalId: string, date: string, progressPct: number) => void
+  clearGoalProgressSession: (date: string) => void
   addRoutine: (r: Omit<Routine, 'id' | 'createdAt'>) => void
   updateRoutine: (id: string, updates: Partial<Routine>) => void
   deleteRoutine: (id: string) => void
@@ -70,6 +72,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setDataState(prev => {
       const hobbySessions = prev.hobbySessions.filter(s => s.date !== date)
       const next = { ...prev, hobbySessions }
+      saveData(next)
+      return next
+    })
+  }, [])
+
+  const logGoalProgressSession = useCallback((goalId: string, date: string, progressPct: number) => {
+    setDataState(prev => {
+      const session: GoalProgressSession = { date, goalId, progressPct }
+      const goalProgressSessions = [
+        ...prev.goalProgressSessions.filter(s => s.date !== date),
+        session,
+      ]
+      const next = { ...prev, goalProgressSessions }
+      saveData(next)
+      return next
+    })
+  }, [])
+
+  const clearGoalProgressSession = useCallback((date: string) => {
+    setDataState(prev => {
+      const goalProgressSessions = prev.goalProgressSessions.filter(s => s.date !== date)
+      const next = { ...prev, goalProgressSessions }
       saveData(next)
       return next
     })
@@ -194,6 +218,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         toggleCompletion,
         logHobbySession,
         clearHobbySession,
+        logGoalProgressSession,
+        clearGoalProgressSession,
         addRoutine,
         updateRoutine,
         deleteRoutine,

@@ -18,9 +18,10 @@ function seedRoutines(extra: Partial<AppData> = {}) {
     goals: [{ id: 'g1', name: 'Read a book', active: true, createdAt: '2026-01-01T00:00:00.000Z' }],
     completions: [],
     hobbySessions: [],
+    goalProgressSessions: [],
     restDays: [],
     dayNotes: {},
-    meta: { version: 2, exportedAt: '2026-01-01T00:00:00.000Z' },
+    meta: { version: 3, exportedAt: '2026-01-01T00:00:00.000Z' },
     ...extra,
   }
   void today; void dow
@@ -120,5 +121,47 @@ describe('CheckInView', () => {
       fireEvent.click(toggle)
       expect(document.body.textContent).toMatch(/rest/i)
     }
+  })
+
+  it('renders goal-time slot picker when isGoalTimeSlot routine is scheduled', () => {
+    const data: AppData = {
+      routines: [
+        { id: 'gt1', name: 'Goal time', block: 'evening', recurrence: 'daily', scheduledDays: [0,1,2,3,4,5,6], priority: 'low', active: true, isGoalTimeSlot: true, createdAt: '2026-01-01T00:00:00.000Z' },
+      ],
+      goals: [{ id: 'g1', name: 'My Goal', active: true, createdAt: '2026-01-01T00:00:00.000Z' }],
+      completions: [],
+      hobbySessions: [],
+      goalProgressSessions: [],
+      restDays: [],
+      dayNotes: {},
+      meta: { version: 3, exportedAt: '2026-01-01T00:00:00.000Z' },
+    }
+    localStorage.setItem('routine-tracker-data', JSON.stringify(data))
+    renderView()
+    expect(document.body.textContent).toContain('Goal time')
+    expect(document.body.textContent).toContain('progress')
+  })
+
+  it('shows progress slider after selecting a goal in goal-time picker', () => {
+    const data: AppData = {
+      routines: [
+        { id: 'gt1', name: 'Goal time', block: 'evening', recurrence: 'daily', scheduledDays: [0,1,2,3,4,5,6], priority: 'low', active: true, isGoalTimeSlot: true, createdAt: '2026-01-01T00:00:00.000Z' },
+      ],
+      goals: [{ id: 'g1', name: 'Project Alpha', active: true, createdAt: '2026-01-01T00:00:00.000Z' }],
+      completions: [],
+      hobbySessions: [],
+      goalProgressSessions: [],
+      restDays: [],
+      dayNotes: {},
+      meta: { version: 3, exportedAt: '2026-01-01T00:00:00.000Z' },
+    }
+    localStorage.setItem('routine-tracker-data', JSON.stringify(data))
+    renderView()
+    // Click on the goal chip
+    const goalChip = screen.getByText('Project Alpha')
+    fireEvent.click(goalChip)
+    // Slider should appear
+    const slider = document.querySelector('input[type="range"]')
+    expect(slider).not.toBeNull()
   })
 })

@@ -27,8 +27,8 @@ describe('GoalsView', () => {
   it('renders goal cards when goals exist', () => {
     const data: AppData = {
       routines: [], goals: [{ id: 'g1', name: 'My Goal', active: true, createdAt: '2026-01-01T00:00:00.000Z' }],
-      completions: [], hobbySessions: [], restDays: [], dayNotes: {},
-      meta: { version: 2, exportedAt: '2026-01-01T00:00:00.000Z' },
+      completions: [], hobbySessions: [], goalProgressSessions: [], restDays: [], dayNotes: {},
+      meta: { version: 3, exportedAt: '2026-01-01T00:00:00.000Z' },
     }
     localStorage.setItem('routine-tracker-data', JSON.stringify(data))
     renderView()
@@ -39,8 +39,8 @@ describe('GoalsView', () => {
   it('renders session count text on goal cards', () => {
     const data: AppData = {
       routines: [], goals: [{ id: 'g1', name: 'My Goal', active: true, createdAt: '2026-01-01T00:00:00.000Z' }],
-      completions: [], hobbySessions: [], restDays: [], dayNotes: {},
-      meta: { version: 2, exportedAt: '2026-01-01T00:00:00.000Z' },
+      completions: [], hobbySessions: [], goalProgressSessions: [], restDays: [], dayNotes: {},
+      meta: { version: 3, exportedAt: '2026-01-01T00:00:00.000Z' },
     }
     localStorage.setItem('routine-tracker-data', JSON.stringify(data))
     renderView()
@@ -51,8 +51,8 @@ describe('GoalsView', () => {
   it('renders goal name text', () => {
     const data: AppData = {
       routines: [], goals: [{ id: 'g1', name: 'My Goal', active: true, createdAt: '2026-01-01T00:00:00.000Z' }],
-      completions: [], hobbySessions: [], restDays: [], dayNotes: {},
-      meta: { version: 2, exportedAt: '2026-01-01T00:00:00.000Z' },
+      completions: [], hobbySessions: [], goalProgressSessions: [], restDays: [], dayNotes: {},
+      meta: { version: 3, exportedAt: '2026-01-01T00:00:00.000Z' },
     }
     localStorage.setItem('routine-tracker-data', JSON.stringify(data))
     renderView()
@@ -84,9 +84,10 @@ describe('GoalsView', () => {
       }],
       completions: [],
       hobbySessions: [],
+      goalProgressSessions: [],
       restDays: [],
       dayNotes: {},
-      meta: { version: 2, exportedAt: '2026-01-01T00:00:00.000Z' },
+      meta: { version: 3, exportedAt: '2026-01-01T00:00:00.000Z' },
     }
     localStorage.setItem('routine-tracker-data', JSON.stringify(data))
 
@@ -123,9 +124,10 @@ describe('GoalsView', () => {
       }],
       completions: [],
       hobbySessions: [],
+      goalProgressSessions: [],
       restDays: [],
       dayNotes: {},
-      meta: { version: 2, exportedAt: '2026-01-01T00:00:00.000Z' },
+      meta: { version: 3, exportedAt: '2026-01-01T00:00:00.000Z' },
     }
     localStorage.setItem('routine-tracker-data', JSON.stringify(data))
 
@@ -153,9 +155,10 @@ describe('GoalsView', () => {
       }],
       completions: [],
       hobbySessions: [],
+      goalProgressSessions: [],
       restDays: [],
       dayNotes: {},
-      meta: { version: 2, exportedAt: '2026-01-01T00:00:00.000Z' },
+      meta: { version: 3, exportedAt: '2026-01-01T00:00:00.000Z' },
     }
     localStorage.setItem('routine-tracker-data', JSON.stringify(data))
 
@@ -179,9 +182,10 @@ describe('GoalsView', () => {
       goals: [{ id: 'g-session', name: 'Session Goal', active: true, createdAt: '2026-01-01T00:00:00.000Z' }],
       completions: [],
       hobbySessions: [{ date: '2026-03-28', goalId: 'g-session' }],
+      goalProgressSessions: [],
       restDays: [],
       dayNotes: {},
-      meta: { version: 2, exportedAt: '2026-01-01T00:00:00.000Z' },
+      meta: { version: 3, exportedAt: '2026-01-01T00:00:00.000Z' },
     }
     localStorage.setItem('routine-tracker-data', JSON.stringify(data))
 
@@ -190,15 +194,61 @@ describe('GoalsView', () => {
     expect(screen.getByText(/Recent sessions/i)).toBeTruthy()
   })
 
+  it('shows archived goals section when inactive goals exist', () => {
+    const data: AppData = {
+      routines: [],
+      goals: [
+        { id: 'g-active', name: 'Active Goal', active: true, createdAt: '2026-01-01T00:00:00.000Z' },
+        { id: 'g-arch', name: 'Archived Goal', active: false, createdAt: '2026-01-01T00:00:00.000Z' },
+      ],
+      completions: [],
+      hobbySessions: [],
+      goalProgressSessions: [{ date: '2026-03-28', goalId: 'g-arch', progressPct: 50 }],
+      restDays: [],
+      dayNotes: {},
+      meta: { version: 3, exportedAt: '2026-01-01T00:00:00.000Z' },
+    }
+    localStorage.setItem('routine-tracker-data', JSON.stringify(data))
+    render(<AppProvider><GoalsView /></AppProvider>)
+    expect(screen.getByText(/Completed.*archived/i)).toBeTruthy()
+    expect(screen.getAllByText('Archived Goal').length).toBeGreaterThan(0)
+  })
+
+  it('shows book progress badge when goal has book type and progress sessions', () => {
+    const data: AppData = {
+      routines: [],
+      goals: [{
+        id: 'g-book',
+        name: 'Book Goal',
+        active: true,
+        goalType: 'book',
+        totalPages: 300,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      }],
+      completions: [],
+      hobbySessions: [],
+      goalProgressSessions: [{ date: '2026-03-28', goalId: 'g-book', progressPct: 60 }],
+      restDays: [],
+      dayNotes: {},
+      meta: { version: 3, exportedAt: '2026-01-01T00:00:00.000Z' },
+    }
+    localStorage.setItem('routine-tracker-data', JSON.stringify(data))
+    render(<AppProvider><GoalsView /></AppProvider>)
+    expect(screen.getAllByText('Book Goal').length).toBeGreaterThan(0)
+    // Should show page progress info
+    expect(document.body.textContent).toMatch(/page|60%/i)
+  })
+
   it('renders goal session counts greater than zero when sessions exist', () => {
     const data: AppData = {
       routines: [],
       goals: [{ id: 'g-session', name: 'Session Goal', active: true, createdAt: '2026-01-01T00:00:00.000Z' }],
       completions: [],
       hobbySessions: [{ date: '2026-03-20', goalId: 'g-session' }],
+      goalProgressSessions: [],
       restDays: [],
       dayNotes: {},
-      meta: { version: 2, exportedAt: '2026-01-01T00:00:00.000Z' },
+      meta: { version: 3, exportedAt: '2026-01-01T00:00:00.000Z' },
     }
     localStorage.setItem('routine-tracker-data', JSON.stringify(data))
 

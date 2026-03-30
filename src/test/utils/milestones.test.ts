@@ -9,6 +9,7 @@ import {
   isMilestoneNearEnd,
   goalProgress,
   periodLabel,
+  calcMilestoneCount,
 } from '../../utils/milestones'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -192,16 +193,17 @@ describe('isMilestoneNearEnd', () => {
   })
 
   it('returns true when end is within 7 days', () => {
-    // We craft a start date so that milestone 1 ends very soon
+    // Craft a start date (local time) so milestone 1 ends 3 days from now.
+    // With period='week', milestone 1 spans 7 days, milestone 2 starts on day 7.
+    // milestone 1 ends on day 6. Set start to 3 days ago so day 6 = 3 days from now.
     const today = new Date()
-    // milestone 1 ends on day 6 from today
-    // milestone 2 starts on day 7 from today → milestone 1 ends day 6
-    const futureStart = new Date(today)
-    futureStart.setDate(today.getDate() - 0) // start today
-    const startStr = futureStart.toISOString().slice(0, 10)
+    today.setHours(0, 0, 0, 0)
+    const startLocal = new Date(today)
+    startLocal.setDate(today.getDate() - 3) // 3 days ago
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const startStr = `${startLocal.getFullYear()}-${pad(startLocal.getMonth() + 1)}-${pad(startLocal.getDate())}`
     const milestones: Milestone[] = [{ id: 'm1', label: 'M1', index: 1 }]
-    // use day period: milestone 2 starts 1 day from startStr → end is same day
-    const g = makeGoal({ milestones, milestoneCount: 2, startDate: startStr, milestonePeriod: 'day' })
+    const g = makeGoal({ milestones, milestoneCount: 2, startDate: startStr, milestonePeriod: 'week' })
     expect(isMilestoneNearEnd(g)).toBe(true)
   })
 })
@@ -243,5 +245,56 @@ describe('periodLabel', () => {
     expect(periodLabel('week')).toBe('week')
     expect(periodLabel('month')).toBe('month')
     expect(periodLabel('year')).toBe('year')
+  })
+})
+
+// ── calcMilestoneCount ────────────────────────────────────────────────────────
+
+describe('calcMilestoneCount', () => {
+  it('returns 0 when startDate is empty', () => {
+    expect(calcMilestoneCount('', '2027-01-01', 'month')).toBe(0)
+  })
+
+  it('returns 0 when endDate is empty', () => {
+    expect(calcMilestoneCount('2026-01-01', '', 'month')).toBe(0)
+  })
+
+  it('returns 0 when end is before start', () => {
+    expect(calcMilestoneCount('2027-01-01', '2026-01-01', 'month')).toBe(0)
+  })
+
+  it('returns 0 when start equals end', () => {
+    expect(calcMilestoneCount('2026-01-01', '2026-01-01', 'day')).toBe(0)
+  })
+
+  it('calculates correct day count', () => {
+    expect(calcMilestoneCount('2026-01-01', '2026-01-08', 'day')).toBe(7)
+  })
+
+  it('calculates correct week count', () => {
+    expect(calcMilestoneCount('2026-01-01', '2026-04-02', 'week')).toBe(13) // 91 days / 7 = 13
+  })
+
+  it('calculates correct month count (same day)', () => {
+    expect(calcMilestoneCount('2026-01-01', '2027-01-01', 'month')).toBe(12)
+  })
+
+  it('calculates correct month count (partial — end day before start day)', () => {
+    // Jan 15 → Feb 10: end day (10) < start day (15) → only 0 full months
+    expect(calcMilestoneCount('2026-01-15', '2026-02-10', 'month')).toBe(0)
+  })
+
+  it('calculates correct year count (same month/day)', () => {
+    expect(calcMilestoneCount('2026-01-01', '2031-01-01', 'year')).toBe(5)
+  })
+
+  it('calculates correct year count (partial year)', () => {
+    // Jan 01, 2026 → Dec 31, 2027: 1 full year
+    expect(calcMilestoneCount('2026-01-01', '2027-12-31', 'year')).toBe(1)
+  })
+
+  it('handles month count across multiple years', () => {
+    // Jan 2026 → Jan 2028 = 24 months
+    expect(calcMilestoneCount('2026-01-01', '2028-01-01', 'month')).toBe(24)
   })
 })

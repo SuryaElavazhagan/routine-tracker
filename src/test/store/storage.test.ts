@@ -10,9 +10,10 @@ function minimalData(): AppData {
     goals: [],
     completions: [],
     hobbySessions: [],
+    goalProgressSessions: [],
     restDays: [],
     dayNotes: {},
-    meta: { version: 2, exportedAt: '2026-01-01T00:00:00.000Z' },
+    meta: { version: 3, exportedAt: '2026-01-01T00:00:00.000Z' },
   }
 }
 
@@ -50,6 +51,24 @@ describe('loadData', () => {
     localStorage.setItem('routine-tracker-data', JSON.stringify(old))
     const data = loadData()
     expect(data.routines[0].priority).toBe('low')
+  })
+
+  it('migrates v2 data: adds goalProgressSessions and goalType to goals', () => {
+    const old = {
+      routines: [],
+      goals: [{ id: 'g1', name: 'Old Goal', active: true, createdAt: '2026-01-01T00:00:00.000Z' }],
+      completions: [],
+      hobbySessions: [],
+      // no goalProgressSessions — v2 data
+      restDays: [],
+      dayNotes: {},
+      meta: { version: 2, exportedAt: '2026-01-01T00:00:00.000Z' },
+    }
+    localStorage.setItem('routine-tracker-data', JSON.stringify(old))
+    const data = loadData()
+    expect(data.goalProgressSessions).toEqual([])
+    expect(data.goals[0].goalType).toBe('normal')
+    expect(data.meta.version).toBe(3)
   })
 
   it('returns fresh default data when localStorage contains corrupted JSON', () => {

@@ -69,6 +69,98 @@ function HobbyPicker({ date }: { date: string }) {
   )
 }
 
+function GoalTimePicker({ date }: { date: string }) {
+  const { data, logGoalProgressSession, clearGoalProgressSession, completeMilestone } = useApp()
+  const session = data.goalProgressSessions.find(s => s.date === date)
+  const goals = data.goals.filter(g => g.active)
+  const [selectedGoalId, setSelectedGoalId] = useState<string>(session?.goalId ?? '')
+  const [pct, setPct] = useState<number>(session?.progressPct ?? 0)
+
+  const selectedGoal = goals.find(g => g.id === selectedGoalId)
+  const activeMilestone = selectedGoal ? currentActiveMilestone(selectedGoal) : null
+
+  function handleGoalSelect(goalId: string) {
+    if (session?.goalId === goalId) {
+      // deselect / clear
+      clearGoalProgressSession(date)
+      setSelectedGoalId('')
+      setPct(0)
+    } else {
+      setSelectedGoalId(goalId)
+      const existing = data.goalProgressSessions.find(s => s.date === date && s.goalId === goalId)
+      const newPct = existing?.progressPct ?? 0
+      setPct(newPct)
+      logGoalProgressSession(goalId, date, newPct)
+    }
+  }
+
+  function handlePctChange(newPct: number) {
+    setPct(newPct)
+    if (selectedGoalId) {
+      logGoalProgressSession(selectedGoalId, date, newPct)
+    }
+  }
+
+  const isDone = !!session
+
+  return (
+    <div className="hobby-row">
+      <div className="hobby-top">
+        <div className="check-circle" style={{ borderColor: isDone ? 'var(--accent)' : undefined, background: isDone ? 'var(--accent)' : undefined }}>
+          {isDone && <CheckIcon />}
+        </div>
+        <span className="routine-name" style={{ color: isDone ? 'var(--text-dim)' : undefined }}>Goal time</span>
+        <span className="hobby-badge">progress</span>
+      </div>
+      <div className="goal-chips">
+        {goals.length === 0 && <span className="text-mute text-small">Add goals in Settings</span>}
+        {goals.map(g => (
+          <button
+            key={g.id}
+            className={`goal-chip${selectedGoalId === g.id && session ? ' selected' : ''}`}
+            onClick={() => handleGoalSelect(g.id)}
+          >
+            {g.name}
+          </button>
+        ))}
+      </div>
+      {selectedGoalId && session && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <span className="text-xs text-mute">Progress this session</span>
+            <span className="text-xs" style={{ fontWeight: 700, color: 'var(--accent)' }}>{pct}%</span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={pct}
+            onChange={e => handlePctChange(Number(e.target.value))}
+            style={{ width: '100%', accentColor: 'var(--accent)' }}
+          />
+          {pct === 100 && activeMilestone && (
+            <div style={{ marginTop: 8, padding: '8px 12px', background: 'rgba(124,106,247,0.1)', borderRadius: 8, border: '1px solid rgba(124,106,247,0.25)' }}>
+              <div className="text-xs" style={{ color: 'var(--accent)', fontWeight: 600, marginBottom: 4 }}>
+                100% — milestone complete?
+              </div>
+              <div className="text-xs text-mute" style={{ marginBottom: 8 }}>
+                Mark "{activeMilestone.label !== `Milestone ${activeMilestone.index}` ? activeMilestone.label : `Milestone ${activeMilestone.index}`}" as done?
+              </div>
+              <button
+                className="btn btn-sm btn-primary"
+                onClick={() => completeMilestone(selectedGoalId, activeMilestone.id)}
+              >
+                Mark milestone done
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function CheckInView() {
   const { data, toggleCompletion, toggleRestDay, setDayNote } = useApp()
   const [noteValue, setNoteValue] = useState(() => data.dayNotes[today()] ?? '')
@@ -156,9 +248,10 @@ export default function CheckInView() {
       )}
 
       {BLOCKS.map(block => {
-        const routines = scheduledToday.filter(r => r.block === block.key && !r.isHobbySlot)
+        const routines = scheduledToday.filter(r => r.block === block.key && !r.isHobbySlot && !r.isGoalTimeSlot)
         const hobbyRoutine = scheduledToday.find(r => r.block === block.key && r.isHobbySlot)
-        if (routines.length === 0 && !hobbyRoutine) return null
+        const goalTimeRoutine = scheduledToday.find(r => r.block === block.key && r.isGoalTimeSlot)
+        if (routines.length === 0 && !hobbyRoutine && !goalTimeRoutine) return null
         return (
           <div key={block.key}>
             <div className="section-label">{block.label}</div>
@@ -201,6 +294,7 @@ export default function CheckInView() {
               )
             })}
             {hobbyRoutine && <HobbyPicker date={t} />}
+            {goalTimeRoutine && <GoalTimePicker date={t} />}
           </div>
         )
       })}

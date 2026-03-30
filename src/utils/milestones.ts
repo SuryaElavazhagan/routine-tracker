@@ -1,6 +1,41 @@
 import { v4 as uuidv4 } from 'uuid'
 import type { Goal, Milestone, MilestonePeriod } from '../types'
 
+/**
+ * Calculate how many full periods fit between startDate and endDate.
+ * Returns 0 if dates are missing/invalid or count would be <= 0.
+ */
+export function calcMilestoneCount(startDate: string, endDate: string, period: MilestonePeriod): number {
+  if (!startDate || !endDate) return 0
+  const [sy, sm, sd] = startDate.split('-').map(Number)
+  const [ey, em, ed] = endDate.split('-').map(Number)
+  const start = new Date(sy, sm - 1, sd)
+  const end = new Date(ey, em - 1, ed)
+  if (end <= start) return 0
+
+  if (period === 'day') {
+    const diff = Math.floor((end.getTime() - start.getTime()) / 86_400_000)
+    return diff > 0 ? diff : 0
+  }
+  if (period === 'week') {
+    const days = Math.floor((end.getTime() - start.getTime()) / 86_400_000)
+    return Math.floor(days / 7)
+  }
+  if (period === 'month') {
+    let count = (ey - sy) * 12 + (em - sm)
+    // Partial month: if end day < start day, subtract one
+    if (ed < sd) count--
+    return count > 0 ? count : 0
+  }
+  if (period === 'year') {
+    let count = ey - sy
+    // Partial year: end month/day before start month/day
+    if (em < sm || (em === sm && ed < sd)) count--
+    return count > 0 ? count : 0
+  }
+  return 0
+}
+
 /** Given a goal's config, generate (or regenerate) its milestone array */
 export function buildMilestones(goal: Goal): Milestone[] {
   const count = goal.milestoneCount ?? 0

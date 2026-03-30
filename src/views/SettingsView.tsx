@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../hooks/useApp'
-import { buildMilestones, periodLabel } from '../utils/milestones'
-import type { Routine, TimeBlock, Recurrence, RoutinePriority, Goal, MilestonePeriod } from '../types'
+import { buildMilestones, periodLabel, calcMilestoneCount } from '../utils/milestones'
+import type { Routine, TimeBlock, Recurrence, RoutinePriority, ReminderFrequency, Goal, MilestonePeriod, GoalType } from '../types'
 
 const BLOCKS: { key: TimeBlock; label: string }[] = [
   { key: 'morning',   label: 'Morning' },
@@ -34,6 +34,8 @@ interface RoutineSheetProps {
   onClose: () => void
 }
 
+type RoutineKind = 'regular' | 'hobby' | 'goal-time'
+
 function RoutineSheet({ routine, onClose }: RoutineSheetProps) {
   const { addRoutine, updateRoutine, deleteRoutine } = useApp()
   const [name, setName] = useState(routine?.name ?? '')
@@ -41,7 +43,15 @@ function RoutineSheet({ routine, onClose }: RoutineSheetProps) {
   const [recurrence, setRecurrence] = useState<Recurrence>(routine?.recurrence ?? 'daily')
   const [days, setDays] = useState<number[]>(routine?.scheduledDays ?? [])
   const [reminderTime, setReminderTime] = useState(routine?.reminderTime ?? '')
+  const [reminderFrequency, setReminderFrequency] = useState<ReminderFrequency>(routine?.reminderFrequency ?? 'daily')
   const [priority, setPriority] = useState<RoutinePriority>(routine?.priority ?? 'low')
+
+  function getKind(): RoutineKind {
+    if (routine?.isGoalTimeSlot) return 'goal-time'
+    if (routine?.isHobbySlot) return 'hobby'
+    return 'regular'
+  }
+  const [kind, setKind] = useState<RoutineKind>(getKind)
 
   function toggleDay(d: number) {
     setDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d].sort())
@@ -56,13 +66,16 @@ function RoutineSheet({ routine, onClose }: RoutineSheetProps) {
       scheduledDays: recurrence === 'daily' ? [0,1,2,3,4,5,6] : days,
       priority,
       active: routine?.active ?? true,
-      ...(reminderTime ? { reminderTime } : {}),
-      ...(routine?.isHobbySlot ? { isHobbySlot: true } : {}),
+      ...(reminderTime ? { reminderTime, reminderFrequency } : {}),
+      ...(kind === 'hobby' ? { isHobbySlot: true } : {}),
+      ...(kind === 'goal-time' ? { isGoalTimeSlot: true } : {}),
     }
     if (routine) updateRoutine(routine.id, payload)
     else addRoutine(payload)
     onClose()
   }
+
+  const isSpecial = routine?.isHobbySlot || routine?.isGoalTimeSlot
 
   return (
     <div className="overlay" onClick={onClose}>
@@ -74,6 +87,34 @@ function RoutineSheet({ routine, onClose }: RoutineSheetProps) {
           <label className="form-label">Name</label>
           <input className="form-input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Gym" autoFocus />
         </div>
+
+        {/* Routine kind — only for new routines (can't change existing special routines) */}
+        {!routine && (
+          <div className="form-group">
+            <label className="form-label">Type</label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {(['regular', 'hobby', 'goal-time'] as RoutineKind[]).map(k => (
+                <button
+                  key={k}
+                  className={`goal-chip${kind === k ? ' selected' : ''}`}
+                  onClick={() => setKind(k)}
+                >
+                  {k === 'regular' ? 'Regular' : k === 'hobby' ? 'Hobby slot' : 'Goal-time slot'}
+                </button>
+              ))}
+            </div>
+            {kind === 'hobby' && (
+              <p className="text-xs text-mute" style={{ marginTop: 6 }}>
+                When done, lets you pick which goal you worked on that day.
+              </p>
+            )}
+            {kind === 'goal-time' && (
+              <p className="text-xs text-mute" style={{ marginTop: 6 }}>
+                When done, lets you pick a goal and log how much progress you made (0–100%).
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="form-group">
           <label className="form-label">Time block</label>
@@ -133,9 +174,23 @@ function RoutineSheet({ routine, onClose }: RoutineSheetProps) {
             value={reminderTime}
             onChange={e => setReminderTime(e.target.value)}
           />
+          {reminderTime && (
+            <div style={{ marginTop: 8 }}>
+              <label className="form-label">Reminder frequency</label>
+              <select
+                className="form-select"
+                value={reminderFrequency}
+                onChange={e => setReminderFrequency(e.target.value as ReminderFrequency)}
+              >
+                <option value="daily">Every day this routine is scheduled</option>
+                <option value="biweekly">Every two weeks</option>
+              </select>
+            </div>
+          )}
           <p className="text-xs text-mute" style={{ marginTop: 4 }}>
-            You'll get a push notification at this time each day this routine is scheduled.
-            Requires notification permission.
+            {reminderFrequency === 'biweekly' && reminderTime
+              ? 'You\'ll get a push notification at this time once every two weeks. Requires notification permission.'
+              : 'You\'ll get a push notification at this time each day this routine is scheduled. Requires notification permission.'}
           </p>
         </div>
 
@@ -143,7 +198,7 @@ function RoutineSheet({ routine, onClose }: RoutineSheetProps) {
           {routine ? 'Save changes' : 'Add routine'}
         </button>
 
-        {routine && !routine.isHobbySlot && (
+        {routine && !isSpecial && (
           <button
             className="btn btn-danger btn-full"
             style={{ marginTop: 10 }}
@@ -172,60 +227,60 @@ interface GoalSheetProps {
 function GoalSheet({ goal, onClose }: GoalSheetProps) {
   const { addGoal, updateGoal, deleteGoal } = useApp()
   const [name, setName] = useState(goal?.name ?? '')
+  const [goalType, setGoalType] = useState<GoalType>(goal?.goalType ?? 'normal')
+  const [totalPages, setTotalPages] = useState(String(goal?.totalPages ?? ''))
+  const [totalLessons, setTotalLessons] = useState(String(goal?.totalLessons ?? ''))
   const [startDate, setStartDate] = useState(goal?.startDate ?? '')
   const [endDate, setEndDate] = useState(goal?.endDate ?? '')
-  const [milestoneCount, setMilestoneCount] = useState(String(goal?.milestoneCount ?? ''))
   const [milestonePeriod, setMilestonePeriod] = useState<MilestonePeriod>(goal?.milestonePeriod ?? 'month')
-  // Per-milestone labels
+
+  // Auto-calculate milestone count from dates + period
+  const autoCount = startDate && endDate ? calcMilestoneCount(startDate, endDate, milestonePeriod) : 0
+  // Use existing milestones to preserve labels/completions when editing
   const [milestoneLabels, setMilestoneLabels] = useState<string[]>(() => {
     if (!goal?.milestones) return []
     return goal.milestones.map(m => m.label)
   })
   const [showMilestoneLabels, setShowMilestoneLabels] = useState(false)
 
-  const count = parseInt(milestoneCount, 10)
-  const validCount = !isNaN(count) && count > 0
-
-  function syncLabels(newCount: number) {
-    setMilestoneLabels(prev => {
-      const arr = Array.from({ length: newCount }, (_, i) => prev[i] ?? `Milestone ${i + 1}`)
-      return arr
-    })
-  }
-
-  function handleCountChange(val: string) {
-    setMilestoneCount(val)
-    const n = parseInt(val, 10)
-    if (!isNaN(n) && n > 0) syncLabels(n)
+  // Sync label array when autoCount changes
+  function labelsForCount(count: number): string[] {
+    return Array.from({ length: count }, (_, i) => milestoneLabels[i] ?? `Milestone ${i + 1}`)
   }
 
   function save() {
     if (!name.trim()) return
 
+    const parsedPages = parseInt(totalPages, 10)
+    const parsedLessons = parseInt(totalLessons, 10)
+
     const baseGoal: Omit<Goal, 'id' | 'createdAt'> = {
       name: name.trim(),
       active: goal?.active ?? true,
+      goalType,
+      ...(goalType === 'book' && !isNaN(parsedPages) && parsedPages > 0 ? { totalPages: parsedPages } : {}),
+      ...(goalType === 'course' && !isNaN(parsedLessons) && parsedLessons > 0 ? { totalLessons: parsedLessons } : {}),
       ...(startDate ? { startDate } : {}),
       ...(endDate ? { endDate } : {}),
     }
 
-    if (validCount) {
+    if (autoCount > 0) {
       const existingMilestones = goal?.milestones ?? []
-      const labels = milestoneLabels.length === count ? milestoneLabels : Array.from({ length: count }, (_, i) => `Milestone ${i + 1}`)
+      const labels = labelsForCount(autoCount)
 
       const draft: Goal = {
         ...baseGoal,
         id: goal?.id ?? '',
         createdAt: goal?.createdAt ?? '',
-        milestoneCount: count,
+        milestoneCount: autoCount,
         milestonePeriod,
         milestones: existingMilestones,
       }
       const generated = buildMilestones(draft)
       const milestones = generated.map((m, i) => ({ ...m, label: labels[i] ?? m.label }))
-      const currentMilestone = milestones.find(m => !m.completedAt)?.index ?? count
+      const currentMilestone = milestones.find(m => !m.completedAt)?.index ?? autoCount
 
-      const finalGoal = { ...baseGoal, milestoneCount: count, milestonePeriod, milestones, currentMilestone }
+      const finalGoal = { ...baseGoal, milestoneCount: autoCount, milestonePeriod, milestones, currentMilestone }
       if (goal) updateGoal(goal.id, finalGoal)
       else addGoal(finalGoal)
     } else {
@@ -246,6 +301,52 @@ function GoalSheet({ goal, onClose }: GoalSheetProps) {
           <input className="form-input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Read Atomic Habits" autoFocus />
         </div>
 
+        {/* Goal type */}
+        <div className="form-group">
+          <label className="form-label">Type</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {(['normal', 'book', 'course'] as GoalType[]).map(t => (
+              <button
+                key={t}
+                className={`goal-chip${goalType === t ? ' selected' : ''}`}
+                onClick={() => setGoalType(t)}
+              >
+                {t === 'normal' ? 'General' : t === 'book' ? 'Book' : 'Course'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Book-specific fields */}
+        {goalType === 'book' && (
+          <div className="form-group">
+            <label className="form-label">Total pages</label>
+            <input
+              className="form-input"
+              type="number"
+              min="1"
+              value={totalPages}
+              onChange={e => setTotalPages(e.target.value)}
+              placeholder="e.g. 320"
+            />
+          </div>
+        )}
+
+        {/* Course-specific fields */}
+        {goalType === 'course' && (
+          <div className="form-group">
+            <label className="form-label">Total lessons</label>
+            <input
+              className="form-input"
+              type="number"
+              min="1"
+              value={totalLessons}
+              onChange={e => setTotalLessons(e.target.value)}
+              placeholder="e.g. 48"
+            />
+          </div>
+        )}
+
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <div className="form-group">
             <label className="form-label">Start date</label>
@@ -262,51 +363,51 @@ function GoalSheet({ goal, onClose }: GoalSheetProps) {
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Milestones</div>
           <p className="text-xs text-mute" style={{ marginBottom: 10 }}>
-            Split the goal into checkpoints. E.g. a 5-year goal → 60 milestones, each 1 month.
+            Set start and end dates above, then choose a period. Milestone count is calculated automatically.
           </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div className="form-group">
-            <label className="form-label">Number of milestones</label>
-            <input
-              className="form-input"
-              type="number"
-              min="1"
-              max="999"
-              value={milestoneCount}
-              onChange={e => handleCountChange(e.target.value)}
-              placeholder="e.g. 60"
-            />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Each milestone is 1…</label>
-            <select className="form-select" value={milestonePeriod} onChange={e => setMilestonePeriod(e.target.value as MilestonePeriod)}>
-              {MILESTONE_PERIODS.map(p => (
-                <option key={p.key} value={p.key}>{p.label}</option>
-              ))}
-            </select>
-          </div>
+        <div className="form-group">
+          <label className="form-label">Each milestone is 1…</label>
+          <select className="form-select" value={milestonePeriod} onChange={e => setMilestonePeriod(e.target.value as MilestonePeriod)}>
+            {MILESTONE_PERIODS.map(p => (
+              <option key={p.key} value={p.key}>{p.label}</option>
+            ))}
+          </select>
         </div>
 
-        {validCount && (
+        {/* Auto-calculated count display */}
+        {autoCount > 0 ? (
+          <div style={{ marginBottom: 14, padding: '8px 12px', background: 'rgba(124,106,247,0.08)', borderRadius: 8, border: '1px solid rgba(124,106,247,0.2)' }}>
+            <span className="text-xs" style={{ color: 'var(--accent)', fontWeight: 600 }}>
+              {autoCount} milestone{autoCount !== 1 ? 's' : ''} calculated automatically
+            </span>
+            <span className="text-xs text-mute"> ({periodLabel(milestonePeriod)} each, from {startDate} to {endDate})</span>
+          </div>
+        ) : (startDate || endDate) ? (
+          <div style={{ marginBottom: 14 }}>
+            <p className="text-xs text-mute">Set both start and end dates to auto-calculate milestones.</p>
+          </div>
+        ) : null}
+
+        {autoCount > 0 && (
           <div style={{ marginBottom: 14 }}>
             <button
               className="btn btn-secondary btn-sm"
               onClick={() => setShowMilestoneLabels(v => !v)}
               style={{ marginBottom: 8 }}
             >
-              {showMilestoneLabels ? 'Hide' : 'Edit'} milestone labels ({count})
+              {showMilestoneLabels ? 'Hide' : 'Edit'} milestone labels ({autoCount})
             </button>
             {showMilestoneLabels && (
               <div style={{ maxHeight: 220, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 8, padding: 10 }}>
-                {Array.from({ length: count }, (_, i) => (
+                {labelsForCount(autoCount).map((lbl, i) => (
                   <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
                     <span className="text-xs text-mute" style={{ width: 28, flexShrink: 0 }}>#{i + 1}</span>
                     <input
                       className="form-input"
                       style={{ padding: '6px 10px', fontSize: 13 }}
-                      value={milestoneLabels[i] ?? `Milestone ${i + 1}`}
+                      value={lbl}
                       onChange={e => {
                         const updated = [...milestoneLabels]
                         updated[i] = e.target.value
@@ -364,6 +465,12 @@ export default function SettingsView() {
     (a, b) => blockOrder.indexOf(a.block) - blockOrder.indexOf(b.block),
   )
 
+  function routineKindBadge(r: Routine): string {
+    if (r.isGoalTimeSlot) return ' · goal-time'
+    if (r.isHobbySlot) return ' · hobby'
+    return ''
+  }
+
   return (
     <div className="page">
       <div className="page-header">
@@ -386,8 +493,8 @@ export default function SettingsView() {
                 )}
               </div>
               <div className="settings-row-sub">
-                {r.block} · {recurrenceLabel(r)}
-                {r.reminderTime && ` · reminder ${r.reminderTime}`}
+                {r.block} · {recurrenceLabel(r)}{routineKindBadge(r)}
+                {r.reminderTime && ` · reminder ${r.reminderTime}${r.reminderFrequency === 'biweekly' ? ' (biweekly)' : ''}`}
               </div>
             </div>
             <span className="text-mute">›</span>
@@ -421,6 +528,7 @@ export default function SettingsView() {
               <div className="settings-row-text">
                 <div className="settings-row-name">{g.name}</div>
                 <div className="settings-row-sub">
+                  {g.goalType && g.goalType !== 'normal' ? `${g.goalType} · ` : ''}
                   {total > 0
                     ? `${done}/${total} milestones · ${g.milestonePeriod ? `1 ${periodLabel(g.milestonePeriod)} each` : ''}`
                     : 'No milestones set'}

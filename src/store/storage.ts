@@ -14,9 +14,10 @@ function buildDefault(): AppData {
     goals: DEFAULT_GOALS.map(g => ({ ...g, id: uuidv4(), createdAt: now })),
     completions: [],
     hobbySessions: [],
+    goalProgressSessions: [],
     restDays: [],
     dayNotes: {},
-    meta: { version: 2, exportedAt: now },
+    meta: { version: 3, exportedAt: now },
   }
 }
 
@@ -24,10 +25,23 @@ function buildDefault(): AppData {
 function migrate(data: AppData): AppData {
   return {
     ...data,
+    // v3: add goalProgressSessions if missing
+    goalProgressSessions: data.goalProgressSessions ?? [],
+    // v3: add goalType: 'normal' to existing goals that don't have it
+    goals: (data.goals ?? []).map(g => ({
+      ...g,
+      goalType: g.goalType ?? 'normal',
+    })),
     routines: data.routines.map(r => {
-      if (r.priority) return r
-      return { ...r, priority: 'low' as const }
+      const withPriority = r.priority ? r : { ...r, priority: 'low' as const }
+      // reminderFrequency defaults to 'daily' for existing routines that have a
+      // reminderTime but were saved before this field existed
+      if (withPriority.reminderTime && !withPriority.reminderFrequency) {
+        return { ...withPriority, reminderFrequency: 'daily' as const }
+      }
+      return withPriority
     }),
+    meta: { ...data.meta, version: 3 },
   }
 }
 

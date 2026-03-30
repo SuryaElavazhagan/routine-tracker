@@ -8,6 +8,13 @@
  * across browser restarts requires a Push server — so we use the simpler
  * approach: schedule for today on each app open, which is good enough for a
  * morning/evening home-screen PWA.
+ *
+ * Bi-weekly frequency:
+ * We use ISO week number parity to decide which week fires.
+ * Week 0 of the routine's life = the week containing createdAt.
+ * If (currentISOWeek - createdAtISOWeek) is even → fire week; odd → skip.
+ * This gives a consistent every-other-week cadence anchored to when the
+ * routine was created.
  */
 
 import type { Routine } from '../types'
@@ -42,6 +49,43 @@ function msUntilToday(h: number, m: number): number {
   return target.getTime() - now.getTime()
 }
 
+/**
+ * Returns the ISO week number (1-based) for a given date.
+ * ISO weeks start on Monday; week 1 contains the year's first Thursday.
+ */
+export function isoWeekNumber(date: Date): number {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  // Set to nearest Thursday: current date + 4 - current day (Mon=1 … Sun=7)
+  const day = d.getUTCDay() || 7
+  d.setUTCDate(d.getUTCDate() + 4 - day)
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+  return Math.ceil(((d.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7)
+}
+
+/**
+ * Returns a monotonic "week index" — total weeks elapsed since the Unix epoch
+ * (epoch Monday = 1970-01-05). Used to compare two dates by week parity
+ * without year-boundary arithmetic.
+ */
+function weekIndex(date: Date): number {
+  // Days since 1970-01-05 (first Monday of epoch), divided by 7
+  const epochMonday = new Date('1970-01-05T00:00:00Z')
+  const msPerWeek = 7 * 24 * 60 * 60 * 1000
+  return Math.floor((date.getTime() - epochMonday.getTime()) / msPerWeek)
+}
+
+/**
+ * Returns true if today is a "fire week" for a bi-weekly routine.
+ * Uses the parity of (todayWeekIndex - createdAtWeekIndex):
+ *   even difference → fire; odd difference → skip.
+ */
+export function isBiweeklyFireWeek(routine: Routine): boolean {
+  const createdAt = new Date(routine.createdAt)
+  const today = new Date()
+  const diff = weekIndex(today) - weekIndex(createdAt)
+  return diff % 2 === 0
+}
+
 // Track scheduled timer IDs so we can cancel on re-schedule
 const scheduledTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
@@ -55,6 +99,9 @@ export function cancelAllNotifications() {
 export function scheduleRoutineNotification(routine: Routine) {
   if (!routine.reminderTime) return
   if (getPermission() !== 'granted') return
+
+  // Bi-weekly: only fire on alternating weeks anchored to createdAt
+  if (routine.reminderFrequency === 'biweekly' && !isBiweeklyFireWeek(routine)) return
 
   // Cancel any existing timer
   const existing = scheduledTimers.get(routine.id)

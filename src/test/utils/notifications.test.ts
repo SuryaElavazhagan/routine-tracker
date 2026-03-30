@@ -6,6 +6,8 @@ import {
   cancelAllNotifications,
   scheduleRoutineNotification,
   scheduleAllNotifications,
+  isBiweeklyFireWeek,
+  isoWeekNumber,
 } from '../../utils/notifications'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -186,5 +188,116 @@ describe('scheduleAllNotifications', () => {
     const r = makeRoutine({ reminderTime: '08:00' })
     scheduleAllNotifications([r])
     scheduleAllNotifications([r]) // second call should cancel first set
+  })
+})
+
+// ── isoWeekNumber ─────────────────────────────────────────────────────────────
+
+describe('isoWeekNumber', () => {
+  it('returns 1 for the first week of 2026 (Jan 1 is a Thursday → week 1)', () => {
+    expect(isoWeekNumber(new Date('2026-01-01'))).toBe(1)
+  })
+
+  it('returns 52 or 53 for the last week of the year', () => {
+    const w = isoWeekNumber(new Date('2025-12-28'))
+    expect(w).toBeGreaterThanOrEqual(52)
+  })
+
+  it('advances by 1 across a week boundary', () => {
+    const w1 = isoWeekNumber(new Date('2026-03-22')) // Sunday week 12
+    const w2 = isoWeekNumber(new Date('2026-03-23')) // Monday week 13
+    expect(w2).toBe(w1 + 1)
+  })
+})
+
+// ── isBiweeklyFireWeek ────────────────────────────────────────────────────────
+
+describe('isBiweeklyFireWeek', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('returns true when today is in the same week as createdAt (diff = 0, even)', () => {
+    // createdAt on a Monday; today is the same Monday
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-23T10:00:00')) // Monday week 13
+    const r = makeRoutine({ createdAt: '2026-03-23T08:00:00.000Z' })
+    expect(isBiweeklyFireWeek(r)).toBe(true)
+  })
+
+  it('returns false one week after createdAt (diff = 1, odd)', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-30T10:00:00')) // Monday week 14 — one week later
+    const r = makeRoutine({ createdAt: '2026-03-23T08:00:00.000Z' }) // week 13
+    expect(isBiweeklyFireWeek(r)).toBe(false)
+  })
+
+  it('returns true two weeks after createdAt (diff = 2, even)', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-04-06T10:00:00')) // Monday week 15 — two weeks later
+    const r = makeRoutine({ createdAt: '2026-03-23T08:00:00.000Z' }) // week 13
+    expect(isBiweeklyFireWeek(r)).toBe(true)
+  })
+
+  it('returns false three weeks after createdAt (diff = 3, odd)', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-04-13T10:00:00')) // Monday week 16 — three weeks later
+    const r = makeRoutine({ createdAt: '2026-03-23T08:00:00.000Z' }) // week 13
+    expect(isBiweeklyFireWeek(r)).toBe(false)
+  })
+})
+
+// ── biweekly scheduling behaviour ────────────────────────────────────────────
+
+describe('scheduleRoutineNotification — biweekly', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    cancelAllNotifications()
+    setNotificationPermission('granted')
+    Object.defineProperty(globalThis.navigator, 'serviceWorker', {
+      value: { controller: null },
+      configurable: true,
+    })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('skips scheduling on a non-fire week', () => {
+    // createdAt week 13, today week 14 → odd diff → skip
+    vi.setSystemTime(new Date('2026-03-30T06:00:00')) // week 14
+    const r = makeRoutine({
+      reminderTime: '08:00',
+      reminderFrequency: 'biweekly',
+      createdAt: '2026-03-23T08:00:00.000Z', // week 13
+    })
+    // Should not throw and should not schedule a timer
+    expect(() => scheduleRoutineNotification(r)).not.toThrow()
+    // Running timers should do nothing
+    vi.runAllTimers()
+  })
+
+  it('schedules on a fire week (even diff)', () => {
+    // createdAt week 13, today week 13 → diff 0 → fire
+    vi.setSystemTime(new Date('2026-03-23T06:00:00')) // week 13
+    const r = makeRoutine({
+      reminderTime: '08:00',
+      reminderFrequency: 'biweekly',
+      createdAt: '2026-03-23T08:00:00.000Z',
+    })
+    expect(() => scheduleRoutineNotification(r)).not.toThrow()
+    vi.runAllTimers()
+  })
+
+  it('treats missing reminderFrequency as daily (always fires)', () => {
+    vi.setSystemTime(new Date('2026-03-30T06:00:00')) // week 14 — would be skip for biweekly
+    const r = makeRoutine({
+      reminderTime: '08:00',
+      // no reminderFrequency → defaults to daily behaviour
+      createdAt: '2026-03-23T08:00:00.000Z',
+    })
+    expect(() => scheduleRoutineNotification(r)).not.toThrow()
+    vi.runAllTimers()
   })
 })

@@ -20,6 +20,7 @@ function seedRoutines() {
     ],
     goals: [],
     completions: [], hobbySessions: [], restDays: [], dayNotes: {},
+    goalProgressSessions: [],
     meta: { version: 2, exportedAt: '2026-01-01T00:00:00.000Z' },
   }
   localStorage.setItem('routine-tracker-data', JSON.stringify(data))
@@ -191,17 +192,16 @@ describe('SettingsView', () => {
     })
   })
 
-  it('shows milestone label editor when count is set', () => {
+  it('shows auto-calculated milestone count when dates are set', () => {
     renderView()
     const addButtons = screen.getAllByText('+ Add')
     fireEvent.click(addButtons[1])
-    const countInput = screen.getByPlaceholderText(/e.g. 60/i) as HTMLInputElement
-    fireEvent.change(countInput, { target: { value: '3' } })
-    // Should show the "Edit milestone labels" button
-    expect(screen.getByText(/Edit milestone labels/i)).toBeTruthy()
-    fireEvent.click(screen.getByText(/Edit milestone labels/i))
-    // Should show label inputs
-    expect(screen.getByDisplayValue('Milestone 1')).toBeTruthy()
+    // Set start and end dates via the date inputs
+    const dateInputs = document.querySelectorAll('input[type="date"]') as NodeListOf<HTMLInputElement>
+    fireEvent.change(dateInputs[0], { target: { value: '2026-01-01' } })
+    fireEvent.change(dateInputs[1], { target: { value: '2026-12-31' } })
+    // Should show the auto-calculated milestone count message (accent span)
+    expect(screen.getAllByText(/milestone.*calculated automatically/i).length).toBeGreaterThan(0)
   })
 
   it('shows inactive routines section when any routine is inactive', () => {
@@ -234,6 +234,7 @@ describe('SettingsView', () => {
       hobbySessions: [],
       restDays: [],
       dayNotes: {},
+      goalProgressSessions: [],
       meta: { version: 2, exportedAt: '2026-01-01T00:00:00.000Z' },
     }
     localStorage.setItem('routine-tracker-data', JSON.stringify(data))
@@ -254,12 +255,61 @@ describe('SettingsView', () => {
       hobbySessions: [],
       restDays: [],
       dayNotes: {},
+      goalProgressSessions: [],
       meta: { version: 2, exportedAt: '2026-01-01T00:00:00.000Z' },
     }
     localStorage.setItem('routine-tracker-data', JSON.stringify(data))
 
     render(<AppProvider><SettingsView /></AppProvider>)
     expect(screen.getByText('Archived Goal')).toBeTruthy()
+  })
+
+  it('shows goal-time slot description when Goal-time slot kind is selected', () => {
+    renderView()
+    const addButtons = screen.getAllByText('+ Add')
+    fireEvent.click(addButtons[0])
+    const goalTimeBtn = screen.getByText('Goal-time slot')
+    fireEvent.click(goalTimeBtn)
+    expect(screen.getByText(/log how much progress/i)).toBeTruthy()
+  })
+
+  it('shows hobby slot description when Hobby slot kind is selected', () => {
+    renderView()
+    const addButtons = screen.getAllByText('+ Add')
+    fireEvent.click(addButtons[0])
+    const hobbyBtn = screen.getByText('Hobby slot')
+    fireEvent.click(hobbyBtn)
+    expect(screen.getByText(/pick which goal you worked on/i)).toBeTruthy()
+  })
+
+  it('shows total pages input when Book type is selected', () => {
+    renderView()
+    const addButtons = screen.getAllByText('+ Add')
+    fireEvent.click(addButtons[1])
+    fireEvent.click(screen.getByText('Book'))
+    expect(screen.getByPlaceholderText(/e\.g\. 320/i)).toBeTruthy()
+  })
+
+  it('shows total lessons input when Course type is selected', () => {
+    renderView()
+    const addButtons = screen.getAllByText('+ Add')
+    fireEvent.click(addButtons[1])
+    fireEvent.click(screen.getByText('Course'))
+    expect(screen.getByPlaceholderText(/e\.g\. 48/i)).toBeTruthy()
+  })
+
+  it('shows milestone label editor when Edit milestone labels is clicked', () => {
+    renderView()
+    const addButtons = screen.getAllByText('+ Add')
+    fireEvent.click(addButtons[1])
+    const dateInputs = document.querySelectorAll('input[type="date"]') as NodeListOf<HTMLInputElement>
+    fireEvent.change(dateInputs[0], { target: { value: '2026-01-01' } })
+    fireEvent.change(dateInputs[1], { target: { value: '2026-12-31' } })
+    const editLabelsBtn = screen.getByText(/Edit milestone labels/i)
+    fireEvent.click(editLabelsBtn)
+    // Label inputs should now be visible
+    const labelInputs = document.querySelectorAll('.form-input[style*="font-size: 13px"]')
+    expect(labelInputs.length).toBeGreaterThan(0)
   })
 
   it('deletes a routine from the edit sheet', async () => {
